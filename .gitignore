@@ -20,3 +20,5 @@ src/wwwroot/lib
 artifacts
 .vs
 *.log
+bin
+obj
