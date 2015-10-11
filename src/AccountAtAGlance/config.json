@@ -1,0 +1,10 @@
+{
+  "Data": {
+    "AccountAtAGlanceContext": {
+      "ConnectionString":  "Server=(localdb)\\mssqllocaldb;Database=AccountAtAGlance;Trusted_Connection=True;MultipleActiveResultSets=true"
+    },
+    "ApplicationDbContext": {
+      "ConnectionString": "Server=(localdb)\\mssqllocaldb;Database=aspnet5-AccountAtAGlance-4e47000f-f03b-4b02-8b1f-e50b74eb0643;Trusted_Connection=True;MultipleActiveResultSets=true"
+    }
+  }
+}
