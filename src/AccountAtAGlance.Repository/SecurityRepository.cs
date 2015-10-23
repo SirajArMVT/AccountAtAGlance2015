@@ -12,48 +12,41 @@ namespace AccountAtAGlance.Repository
     public class SecurityRepository : RepositoryBase<AccountAtAGlanceContext>, ISecurityRepository
     {
         //Some random symbols to use in order to get data into the database
-        private readonly string[] _StockSymbols = {"AMZN", "BAC", "C", "DIS", "EMC", "FDX", "GE", "H", "INTC", "JPM", "K", 
-                                                   "LLY", "MSFT", "NKE", "ORCL", "PG", "Q", "RBS", "S", "T", "UL", "V", "WMT", 
-                                                   "XRX", "YHOO", "ZION", "AAPL", "IBM", "NOK", "CSCO", "FCX", "MTH", "SPF", 
-                                                   "CRM", "CAT", "LMT", "GD", "XOM", "CVX", "SLB", "BA", "F", "X", "AA", 
+        private readonly string[] _StockSymbols = {"AMZN", "BAC", "C", "DIS", "EMC", "FDX", "GE", "H", "INTC", "JPM", "K",
+                                                   "LLY", "MSFT", "NKE", "ORCL", "PG", "Q", "RBS", "S", "T", "UL", "V", "WMT",
+                                                   "XRX", "YHOO", "ZION", "AAPL", "IBM", "NOK", "CSCO", "FCX", "MTH", "SPF",
+                                                   "CRM", "CAT", "LMT", "GD", "XOM", "CVX", "SLB", "BA", "F", "X", "AA",
                                                    "NOC", "RTN","FMAGX", "FDGFX", "FCNTX", "GOOG", "ITRGX", "EBAY", "AOL", "BIDU" };
         IStockEngine _StockEngine;
 
-        public SecurityRepository(IStockEngine stockEngine, 
-                                  AccountAtAGlanceContext context, 
-                                  IServiceProvider serviceProvider) : base(context, serviceProvider)
+        public SecurityRepository(IStockEngine stockEngine,
+                                  AccountAtAGlanceContext context) : base(context)
         {
             _StockEngine = stockEngine;
         }
 
         public async Task<Security> GetSecurityAsync(string symbol)
         {
-            using (DataContext)
+            var stock = await DataContext.Stocks.SingleOrDefaultAsync(s => s.Symbol == symbol);
+            if (stock != null)
             {
-                var stock = await DataContext.Stocks.SingleOrDefaultAsync(s => s.Symbol == symbol);
-                if (stock != null)
-                {
-                    stock.DataPoints = new DataSimulator().GetDataPoints(stock.Last);
-                    return stock;
-                }
-
-                var mutual = await DataContext.MutualFunds.SingleOrDefaultAsync(s => s.Symbol == symbol);
-                return mutual;
+                stock.DataPoints = new DataSimulator().GetDataPoints(stock.Last);
+                return stock;
             }
+
+            var mutual = await DataContext.MutualFunds.SingleOrDefaultAsync(s => s.Symbol == symbol);
+            return mutual;
         }
 
         public async Task<List<TickerQuote>> GetSecurityTickerQuotesAsync()
         {
-            using (DataContext)
-            {
-                return await DataContext.Stocks.Select(s =>
-                    new TickerQuote
-                    {
-                        Symbol = s.Symbol,
-                        Change = s.Change,
-                        Last = s.Last
-                    }).OrderBy(tq => tq.Symbol).ToListAsync();
-            }
+            return await DataContext.Stocks.Select(s =>
+                new TickerQuote
+                {
+                    Symbol = s.Symbol,
+                    Change = s.Change,
+                    Last = s.Last
+                }).OrderBy(tq => tq.Symbol).ToListAsync();
         }
 
         public async Task<OperationStatus> UpdateSecuritiesAsync()
@@ -97,17 +90,14 @@ namespace AccountAtAGlance.Repository
 
             if (securities != null && securities.Count > 0)
             {
-                using (DataContext)
-                {
-                    var opStatus = await DeleteSecurityRecordsAsync(DataContext);
-                    if (!opStatus.Status) return opStatus;
+                var opStatus = await DeleteSecurityRecordsAsync(DataContext);
+                if (!opStatus.Status) return opStatus;
 
-                    opStatus = await InsertExchangesAsync(exchanges, DataContext);
-                    if (!opStatus.Status) return opStatus;
+                opStatus = await InsertExchangesAsync(exchanges, DataContext);
+                if (!opStatus.Status) return opStatus;
 
-                    opStatus = await InsertSecuritiesAsync(securities, DataContext);
-                    if (!opStatus.Status) return opStatus;
-                }
+                opStatus = await InsertSecuritiesAsync(securities, DataContext);
+                if (!opStatus.Status) return opStatus;
             }
             return new OperationStatus { Status = true };
         }

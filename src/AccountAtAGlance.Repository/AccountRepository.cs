@@ -15,26 +15,20 @@ namespace AccountAtAGlance.Repository
     {
         IStockEngine _StockEngine;
         ISecurityRepository _SecurityRepository;
-        IServiceProvider _ServiceProvider;
 
-        public AccountRepository(IStockEngine stockEngine, 
-            ISecurityRepository securityRepository, 
-            AccountAtAGlanceContext context, 
-            IServiceProvider serviceProvider) : base(context, serviceProvider)
+        public AccountRepository(IStockEngine stockEngine,
+            ISecurityRepository securityRepository,
+            AccountAtAGlanceContext context) : base(context)
         {
             _StockEngine = stockEngine;
             _SecurityRepository = securityRepository;
-            _ServiceProvider = serviceProvider;
         }
 
         public async Task<Customer> GetCustomerAsync(string custId)
         {
-            using (DataContext)
-            {
-                return await DataContext.Customers
-                    .Include(c => c.BrokerageAccounts)
-                    .SingleOrDefaultAsync(c => c.CustomerCode == custId);
-            }
+            return await DataContext.Customers
+                .Include(c => c.BrokerageAccounts)
+                .SingleOrDefaultAsync(c => c.CustomerCode == custId);
         }
 
         public async Task<OperationStatus> InsertAccountAsync(BrokerageAccount acct)
@@ -97,13 +91,10 @@ namespace AccountAtAGlance.Repository
 
         public async Task<BrokerageAccount> GetAccountAsync(int id)
         {
-            using (DataContext)
-            {
-                return await DataContext.BrokerageAccounts
-                    .Include(ba => ba.Orders)
-                    .Include(ba => ba.Positions)
-                    .SingleOrDefaultAsync(ba => ba.Id == id);
-            }
+            return await DataContext.BrokerageAccounts
+                .Include(ba => ba.Orders)
+                .Include(ba => ba.Positions)
+                .SingleOrDefaultAsync(ba => ba.Id == id);
         }
 
         #region Seeding
@@ -113,30 +104,27 @@ namespace AccountAtAGlance.Repository
             var opStatus = new OperationStatus { Status = true };
             try
             {
-                using (DataContext)
-                {
-                    await DataContext.DeleteAccounts();
+                await DataContext.DeleteAccounts();
 
-                    if (opStatus.Status)
+                if (opStatus.Status)
+                {
+                    var cust = new Customer
                     {
-                        var cust = new Customer
-                        {
-                            FirstName = "Marcus",
-                            LastName = "Hightower",
-                            Address = "1234 Anywhere St.",
-                            City = "Phoenix",
-                            State = "AZ",
-                            Zip = 85229,
-                            CustomerCode = "C15643"
-                        };
-                        DataContext.Customers.Add(cust);
-                        var accts = CreateBrokerageAccounts(cust);
-                        foreach (var acct in accts)
-                        {
-                            cust.BrokerageAccounts.Add(acct);
-                        }
-                        await DataContext.SaveChangesAsync();
+                        FirstName = "Marcus",
+                        LastName = "Hightower",
+                        Address = "1234 Anywhere St.",
+                        City = "Phoenix",
+                        State = "AZ",
+                        Zip = 85229,
+                        CustomerCode = "C15643"
+                    };
+                    DataContext.Customers.Add(cust);
+                    var accts = CreateBrokerageAccounts(cust);
+                    foreach (var acct in accts)
+                    {
+                        cust.BrokerageAccounts.Add(acct);
                     }
+                    await DataContext.SaveChangesAsync();
                 }
             }
             catch (Exception exp)
@@ -180,45 +168,41 @@ namespace AccountAtAGlance.Repository
             var opStatus = new OperationStatus { Status = true };
             try
             {
-                using (DataContext)
-                {
-                    var securities = await DataContext.Stocks.ToListAsync();
-                    var accounts = await DataContext.BrokerageAccounts.ToListAsync();
+                var securities = await DataContext.Stocks.ToListAsync();
+                var accounts = await DataContext.BrokerageAccounts.ToListAsync();
 
-                    for (int i = 0; i < accounts.Count; i++)
+                for (int i = 0; i < accounts.Count; i++)
+                {
+                    var account = accounts[i];
+                    var rdm = new Random((int)DateTime.Now.Ticks + i);
+                    for (int index = 0; index < 10; index++)
                     {
-                        var account = accounts[i];
-                        var rdm = new Random((int)DateTime.Now.Ticks + i);
-                        for (int index = 0; index < 10; index++)
+                        int pos = rdm.Next(securities.Count - 1);
+                        var stock = securities[pos];
+                        if (!account.Positions.Any(p => p.Security.Symbol == stock.Symbol))
                         {
-                            int pos = rdm.Next(securities.Count - 1);
-                            var stock = securities[pos];
-                            if (!account.Positions.Any(p => p.Security.Symbol == stock.Symbol))
+                            var multiplier = (pos == 0) ? 1 : pos;
+                            var shares = multiplier * 100;
+                            var total = shares * stock.Last;
+                            var position = new Position
                             {
-                                var multiplier = (pos == 0) ? 1 : pos;
-                                var shares = multiplier * 100;
-                                var total = shares * stock.Last;
-                                var position = new Position
-                                {
-                                    SecurityId = stock.Id,
-                                    Security = stock,
-                                    Shares = shares,
-                                    Total = total
-                                };
-                                account.Positions.Add(position);
-                            }
+                                SecurityId = stock.Id,
+                                Security = stock,
+                                Shares = shares,
+                                Total = total
+                            };
+                            account.Positions.Add(position);
                         }
                     }
-
-                    await DataContext.SaveChangesAsync();
-
                 }
+
+                await DataContext.SaveChangesAsync();
             }
             catch (Exception exp)
             {
                 opStatus = OperationStatus.CreateFromException("Error updating security exchange: " + exp.Message, exp);
             }
-            return opStatus;           
+            return opStatus;
         }
 
         #endregion

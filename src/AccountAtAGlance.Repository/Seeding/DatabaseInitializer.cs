@@ -1,41 +1,48 @@
-﻿using AccountAtAGlance.Repository.Helpers;
-using Microsoft.Data.Entity;
+﻿using Microsoft.Data.Entity;
 using System;
-using Microsoft.Framework.DependencyInjection;
 using System.Threading.Tasks;
-using Microsoft.Data.Entity.SqlServer;
 using AccountAtAGlance.Repository.Interfaces;
 
 namespace AccountAtAGlance.Repository.Seeding
 {
-    public static class DatabaseInitializer
+    public class DatabaseInitializer
     {
-        public static async Task SeedAsync(IServiceProvider serviceProvider)
+        IAccountRepository _AccountRepository;
+        ISecurityRepository _SecurityRepository;
+        IMarketsAndNewsRepository _MarketsAndNewsRepository;
+        AccountAtAGlanceContext _Context;
+
+        public DatabaseInitializer(AccountAtAGlanceContext context, IAccountRepository acctRepo,
+            ISecurityRepository securityRepo, IMarketsAndNewsRepository marketsRepo)
         {
-            using (var context = serviceProvider.GetService<AccountAtAGlanceContext>())
+            _Context = context;
+            _AccountRepository = acctRepo;
+            _SecurityRepository = securityRepo;
+            _MarketsAndNewsRepository = marketsRepo;
+        }
+
+        public async Task SeedAsync()
+        {
+            var db = _Context.Database;
+            if (db != null)
             {
-                var db = context.Database;
-                if (db != null)
+                if (await db.EnsureCreatedAsync())
                 {
-                    if (await db.EnsureCreatedAsync())
-                    {
-                        await InsertSampleData(serviceProvider);
-                    }
+                    await InsertSampleData();
                 }
-                else
-                {
-                    await InsertSampleData(serviceProvider);
-                }
+            }
+            else
+            {
+                await InsertSampleData();
             }
         }
 
-        public static async Task InsertSampleData(IServiceProvider serviceProvider)
+        public async Task InsertSampleData()
         {
             await Task.Run(async () =>
             {
-                using (var context = serviceProvider.GetService<AccountAtAGlanceContext>())
-                {
-                    context.Database.ExecuteSqlCommand(@"
+
+                _Context.Database.ExecuteSqlCommand(@"
                     CREATE PROCEDURE dbo.DeleteSecuritiesAndExchanges
 
                     AS
@@ -59,7 +66,7 @@ namespace AccountAtAGlance.Repository.Seeding
 	                    END
                     ");
 
-                    context.Database.ExecuteSqlCommand(@"
+                _Context.Database.ExecuteSqlCommand(@"
                     CREATE PROCEDURE dbo.DeleteAccounts
 
                     AS
@@ -80,16 +87,10 @@ namespace AccountAtAGlance.Repository.Seeding
 	                    END	
 	                ");
 
-                    var sr = serviceProvider.GetService<ISecurityRepository>();
-                    await sr.InsertSecurityDataAsync();
-
-                    var mr = serviceProvider.GetService<IMarketsAndNewsRepository>();
-                    await mr.InsertMarketDataAsync();
-
-                    var ar = serviceProvider.GetService<IAccountRepository>();
-                    await ar.CreateCustomerAsync();
-                    await ar.CreateAccountPositionsAsync();
-                }
+                await _SecurityRepository.InsertSecurityDataAsync();
+                await _MarketsAndNewsRepository.InsertMarketDataAsync();
+                await _AccountRepository.CreateCustomerAsync();
+                await _AccountRepository.CreateAccountPositionsAsync();
             });
         }
     }

@@ -15,8 +15,7 @@ namespace AccountAtAGlance.Repository
         IStockEngine _StockEngine;
 
         public MarketsAndNewsRepository(IStockEngine stockEngine, 
-                                        AccountAtAGlanceContext context, 
-                                        IServiceProvider serviceProvider) : base(context, serviceProvider)
+                                        AccountAtAGlanceContext context) : base(context)
         {
             _StockEngine = stockEngine;
         }
@@ -82,24 +81,21 @@ namespace AccountAtAGlance.Repository
 
             if (marketIndexes != null && marketIndexes.Count > 0)
             {
-                using (DataContext)
+                var opStatus = DeleteMarketIndexRecords(DataContext);
+                if (!opStatus.Status) return opStatus;
+
+                foreach (var marketIndex in marketIndexes)
                 {
-                    var opStatus = DeleteMarketIndexRecords(DataContext);
-                    if (!opStatus.Status) return opStatus;
+                    DataContext.MarketIndexes.Add(marketIndex);
+                }
 
-                    foreach (var marketIndex in marketIndexes)
-                    {
-                        DataContext.MarketIndexes.Add(marketIndex);
-                    }
-
-                    try
-                    {
-                        await DataContext.SaveChangesAsync();
-                    }
-                    catch (Exception exp)
-                    {
-                        return OperationStatus.CreateFromException("Error inserting market index data.", exp);
-                    }
+                try
+                {
+                    await DataContext.SaveChangesAsync();
+                }
+                catch (Exception exp)
+                {
+                    return OperationStatus.CreateFromException("Error inserting market index data.", exp);
                 }
             }
             return new OperationStatus { Status = true };
@@ -120,16 +116,13 @@ namespace AccountAtAGlance.Repository
 
         public async Task<List<TickerQuote>> GetMarketTickerQuotesAsync()
         {
-            using (DataContext)
-            {
-                return await GetList<MarketIndex>().Select(s =>
-                    new TickerQuote
-                    {
-                        Symbol = s.Symbol,
-                        Change = s.Change,
-                        Last = s.Last
-                    }).ToListAsync();
-            }
+            return await GetList<MarketIndex>().Select(s =>
+                new TickerQuote
+                {
+                    Symbol = s.Symbol,
+                    Change = s.Change,
+                    Last = s.Last
+                }).ToListAsync();
         }
     }
 }

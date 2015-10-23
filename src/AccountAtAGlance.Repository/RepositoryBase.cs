@@ -14,10 +14,9 @@ namespace AccountAtAGlance.Repository
         TContext _DataContext;
         IServiceProvider _ServiceProvider; 
 
-        public RepositoryBase(TContext context, IServiceProvider serviceProvider)
+        public RepositoryBase(TContext context)
         {
             DataContext = context;
-            _ServiceProvider = serviceProvider;
         }
 
         public TContext DataContext { get; set; }
@@ -38,10 +37,7 @@ namespace AccountAtAGlance.Repository
         {
             if (predicate != null)
             {
-                using (DataContext)
-                {
-                    return DataContext.Set<T>().Where(predicate).SingleOrDefault();
-                }
+                return DataContext.Set<T>().Where(predicate).SingleOrDefault();
             }
             else
             {
