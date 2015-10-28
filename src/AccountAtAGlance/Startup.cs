@@ -49,12 +49,11 @@ namespace AccountAtAGlance
                 .AddDbContext<ApplicationDbContext>(options =>
                 {
                     options.UseSqlServer(Configuration["Data:ApplicationDbContext:ConnectionString"]);
+                })
+                .AddDbContext<AccountAtAGlanceContext>(options =>
+                {
+                    options.UseSqlServer(Configuration["Data:AccountAtAGlanceContext:ConnectionString"]);
                 });
-
-            services.AddEntityFramework()
-            .AddSqlServer()
-            .AddDbContext<AccountAtAGlanceContext>(options =>
-                options.UseSqlServer(Configuration["Data:AccountAtAGlanceContext:ConnectionString"]));
 
             // Add Identity services to the services container.
             services.AddIdentity<ApplicationUser, IdentityRole>()
